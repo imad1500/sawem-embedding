@@ -1,22 +1,18 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
-from fastapi.middleware.cors import CORSMiddleware
+import numpy as np
 
 app = FastAPI()
-model = SentenceTransformer('all-MiniLM-L6-v2')
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"]
-)
+# Modèle léger pour CPU
+model = SentenceTransformer('all-MiniLM-L6-v2')  # ~384 dimensions, rapide et petit
 
-class TextRequest(BaseModel):
+# Input du POST pour générer un embedding
+class TextItem(BaseModel):
     text: str
 
 @app.post("/embedding")
-def get_embedding(req: TextRequest):
-    vector = model.encode(req.text).tolist()
-    return vector
+def get_embedding(item: TextItem):
+    vector = model.encode(item.text)
+    return {"embedding": vector.tolist()}  # conversion en liste pour JSON
