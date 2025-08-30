@@ -1,5 +1,4 @@
-# embedding_server.py
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
 import numpy as np
@@ -7,41 +6,59 @@ import os
 import psycopg2
 import psycopg2.extras
 
-# --- CONFIG PostgreSQL Supabase ---
-DB_URL = os.getenv("DATABASE_URL")  # Mettre l'URL de ta BDD Supabase
-conn = psycopg2.connect(DB_URL, sslmode="require")
-cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+# ----------------------------
+# CONFIGURATION BASE DE DONNÉES
+# ----------------------------
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PORT", 5432)
+DB_NAME = os.getenv("DB_NAME")
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
 
-# --- FASTAPI APP ---
+conn = psycopg2.connect(
+    host=DB_HOST,
+    port=DB_PORT,
+    dbname=DB_NAME,
+    user=DB_USER,
+    password=DB_PASSWORD
+)
+
+# ----------------------------
+# INITIALISATION DU MODÈLE
+# ----------------------------
+model_name = "all-MiniLM-L6-v2"  # CPU léger ~200-300MB
+model = SentenceTransformer(model_name, device="cpu")
+
+# ----------------------------
+# FASTAPI
+# ----------------------------
 app = FastAPI(title="Embedding Server")
 
-# --- CHARGER MODELE EMBEDDING CPU ---
-model_name = "all-MiniLM-L6-v2"
-model = SentenceTransformer(model_name)
+class QueryRequest(BaseModel):
+    text: str
+    top_k: int = 5  # nombre de résultats similaires
 
-# --- SCHEMA POUR LA REQUETE ---
-class Query(BaseModel):
-    query: str
-    top_k: int = 10  # nombre de produits retournés
+# ----------------------------
+# ROUTES
+# ----------------------------
+@app.get("/")
+def home():
+    return {"message": "Embedding server is running!"}
 
-# --- ENDPOINT DE RECHERCHE ---
-@app.post("/search")
-def semantic_search(q: Query):
-    try:
-        # Calculer embedding de la requête
-        query_vec = model.encode(q.query).tolist()
+@app.post("/query")
+def query_embeddings(req: QueryRequest):
+    query_vec = model.encode(req.text).tolist()  # vecteur embedding
+    top_k = req.top_k
 
-        # Requête SQL avec pgvector
-        cursor.execute(
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute(
             """
-            SELECT *, embedding <-> %s AS distance
+            SELECT id, name, description, embedding
             FROM products
-            ORDER BY distance ASC
-            LIMIT %s
+            ORDER BY embedding <-> %s
+            LIMIT %s;
             """,
-            (query_vec, q.top_k)
+            (query_vec, top_k)
         )
-        results = cursor.fetchall()
-        return {"results": results}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        results = cur.fetchall()
+    return {"results": results}
