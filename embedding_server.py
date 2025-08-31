@@ -1,30 +1,25 @@
 from fastapi import FastAPI
-from sentence_transformers import SentenceTransformer
 import psycopg
-import os
-from dotenv import load_dotenv
-
-load_dotenv()  # charge le .env si nécessaire
 
 app = FastAPI()
-model = SentenceTransformer('all-MiniLM-L6-v2')
 
-# Connexion à la base PostgreSQL
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:password@localhost:5432/postgres")
-conn = psycopg.connect(DATABASE_URL)
+# Exemple de connexion PostgreSQL (psycopg 3)
+DATABASE_URL = "postgresql://postgres:password@host:port/dbname"
+
+def get_conn():
+    return psycopg.connect(DATABASE_URL)
 
 @app.get("/")
 def read_root():
-    return {"message": "Embedding service is up!"}
+    return {"message": "Sawem embedding server is running!"}
 
-@app.post("/embed/")
-def embed_text(text: str):
-    embedding = model.encode(text).tolist()
-    return {"embedding": embedding}
-
-@app.get("/testdb/")
+@app.get("/test-db")
 def test_db():
-    with conn.cursor() as cur:
-        cur.execute("SELECT 1;")
-        result = cur.fetchone()
-    return {"db_result": result}
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1;")
+                result = cur.fetchone()
+        return {"db_result": result[0]}
+    except Exception as e:
+        return {"error": str(e)}
