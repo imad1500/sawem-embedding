@@ -1,23 +1,21 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
+from flask import Flask, request, jsonify
 from sentence_transformers import SentenceTransformer
 
-app = FastAPI(title="Embedding Server")
+app = Flask(__name__)
 
-# Chargement du modèle MiniLM CPU
-model = SentenceTransformer("all-MiniLM-L6-v2")
+# Charger le modèle MiniLM
+model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
-class EmbeddingRequest(BaseModel):
-    texts: list[str]
+@app.route("/embed", methods=["POST"])
+def embed():
+    data = request.get_json()
+    sentences = data.get("sentences", [])
+    embeddings = model.encode(sentences).tolist()
+    return jsonify({"embeddings": embeddings})
 
-class EmbeddingResponse(BaseModel):
-    embeddings: list[list[float]]
+@app.route("/")
+def home():
+    return "✅ Embedding server is running with all-MiniLM-L6-v2"
 
-@app.post("/embed", response_model=EmbeddingResponse)
-async def embed(request: EmbeddingRequest):
-    embeddings = model.encode(request.texts, convert_to_numpy=True).tolist()
-    return EmbeddingResponse(embeddings=embeddings)
-
-@app.get("/")
-async def root():
-    return {"message": "Embedding server is running."}
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8000)
