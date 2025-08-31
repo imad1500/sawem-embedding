@@ -1,6 +1,15 @@
+# Web frameworks
 fastapi==0.116.1
+flask==2.3.3
 uvicorn==0.30.0
+gunicorn==21.2.0
+
+# Database
+psycopg==3.1.9  # compatible Python 3.13
+
+# Machine Learning / NLP
 sentence-transformers==2.7.0
+torch==2.8.0        # dernière version CPU compatible Py 3.13
+transformers==4.45.1
+scikit-learn==1.5.2
 numpy==1.26.4
-psycopg==3.2.2
-python-dotenv==1.0.0
