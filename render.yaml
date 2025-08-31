@@ -1,7 +1,7 @@
 services:
   - type: web
-    name: embedding-server
+    name: sawem-embedding6
     env: python
-    buildCommand: pip install --upgrade pip setuptools wheel && pip install -r requirements.txt
-    startCommand: gunicorn -w 2 -b 0.0.0.0:8000 embedding_server:app
     plan: free
+    buildCommand: pip install --upgrade pip setuptools wheel && pip install -r requirements.txt
+    startCommand: gunicorn -w 2 -k uvicorn.workers.UvicornWorker embedding_server:app
